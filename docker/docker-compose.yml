@@ -1,0 +1,33 @@
+services:
+  suwayomi-server:
+    build:
+      context: ..
+      dockerfile: Dockerfile
+    ports:
+      - "4567:4567"
+    environment:
+      - JAVA_OPTS=-Xmx2048m -Djava.awt.headless=true
+    volumes:
+      - suwayomi-data:/data
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:4567/api/v1/settings" ]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+
+  suwayomi-webui:
+    build:
+      context: ../../Suwayomi-WebUI
+      dockerfile: Dockerfile.dev
+    ports:
+      - "3000:3000"
+    environment:
+      - SUWAYOMI_SERVER_URL=http://suwayomi-server:4567
+    volumes:
+      - ../../Suwayomi-WebUI:/app
+      - /app/node_modules
+    depends_on:
+      - suwayomi-server
+
+volumes:
+  suwayomi-data:
