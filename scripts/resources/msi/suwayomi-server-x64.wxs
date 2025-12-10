@@ -1,6 +1,6 @@
 ﻿<?xml version="1.0" encoding="utf-8"?>
 <Wix xmlns="http://schemas.microsoft.com/wix/2006/wi">
-  <Product Id="*" UpgradeCode="*"
+  <Product Id="*" UpgradeCode="174c8f36-0bec-4585-9ddd-469c3d889dc1"
     Version="$(var.ProductVersion)" Language="1033" Name="Suwayomi Server" Manufacturer="Suwayomi">
     <Package InstallerVersion="300" Compressed="yes" />
     <Media Id="1" Cabinet="Suwayomi_Server.cab" EmbedCab="yes" />
@@ -9,12 +9,15 @@
       VersionNT64
     </Condition>
 
+    <MajorUpgrade DowngradeErrorMessage="A newer version of [ProductName] is already installed." />
+
     <!-- Directory -->
     <Directory Id="TARGETDIR" Name="SourceDir">
       <Directory Id="ProgramFiles64Folder">
         <Directory Id="INSTALLDIR" Name="Suwayomi-Server" >
           <Directory Id="jre"/>
           <Directory Id="electron"/>
+          <Directory Id="natives"/>
           <Directory Id="bin"/>
         </Directory>
       </Directory>
@@ -48,6 +51,10 @@
       </Component>
     </DirectoryRef>
 
+    <InstallExecuteSequence>
+      <RemoveExistingProducts After="InstallValidate" />
+    </InstallExecuteSequence>
+
     <!-- Feature -->
     <Feature Id="Suwayomi_Server" Title="Suwayomi-Server" Level="1">
       <ComponentGroupRef Id="jre" />
@@ -56,6 +63,7 @@
       <ComponentRef Id="SuwayomiLauncherBAT" />
       <ComponentRef Id="ProgramMenuDir" />
       <ComponentGroupRef Id="electron" />
+      <ComponentGroupRef Id="natives" />
     </Feature>
 
     <Icon Id="Suwayomi.ico" SourceFile="$(var.Icon)" />

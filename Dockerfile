@@ -2,7 +2,8 @@
 FROM gradle:8.5-jdk21 AS build
 
 # Set test environment variables
-ENV JAVA_TOOL_OPTIONS="-Djava.awt.headless=true"
+ENV JAVA_TOOL_OPTIONS="-Djava.awt.headless=true -Xmx2g"
+ENV GRADLE_OPTS="-Dorg.gradle.daemon=false -Dorg.gradle.jvmargs=-Xmx2g"
 
 WORKDIR /home/gradle/src
 

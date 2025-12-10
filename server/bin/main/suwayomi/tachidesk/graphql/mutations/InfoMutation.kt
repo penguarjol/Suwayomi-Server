@@ -4,13 +4,14 @@ import graphql.execution.DataFetcherResult
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
 import suwayomi.tachidesk.graphql.asDataFetcherResult
+import suwayomi.tachidesk.graphql.directives.RequireAuth
 import suwayomi.tachidesk.graphql.types.UpdateState.DOWNLOADING
 import suwayomi.tachidesk.graphql.types.UpdateState.ERROR
 import suwayomi.tachidesk.graphql.types.UpdateState.IDLE
+import suwayomi.tachidesk.graphql.types.WebUIFlavor
 import suwayomi.tachidesk.graphql.types.WebUIUpdateStatus
 import suwayomi.tachidesk.server.JavalinSetup.future
 import suwayomi.tachidesk.server.util.WebInterfaceManager
-import suwayomi.tachidesk.server.util.WebUIFlavor
 import java.util.concurrent.CompletableFuture
 import kotlin.time.Duration.Companion.seconds
 
@@ -24,6 +25,7 @@ class InfoMutation {
         val updateStatus: WebUIUpdateStatus,
     )
 
+    @RequireAuth
     fun updateWebUI(input: WebUIUpdateInput): CompletableFuture<DataFetcherResult<WebUIUpdatePayload?>> {
         return future {
             asDataFetcherResult {
@@ -59,6 +61,7 @@ class InfoMutation {
         }
     }
 
+    @RequireAuth
     fun resetWebUIUpdateStatus(): CompletableFuture<DataFetcherResult<WebUIUpdateStatus?>> =
         future {
             asDataFetcherResult {

@@ -30,6 +30,9 @@ object AppUpdate {
     private val network: NetworkHelper by injectLazy()
 
     suspend fun checkUpdate(): List<UpdateDataClass> {
+        if (System.getenv("SUWAYOMI_DISABLE_UPDATE_CHECK") == "true") {
+            return emptyList()
+        }
         val stableJson =
             json
                 .parseToJsonElement(

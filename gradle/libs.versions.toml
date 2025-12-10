@@ -1,19 +1,22 @@
 [versions]
-kotlin = "2.1.10"
-coroutines = "1.10.1"
-serialization = "1.8.0"
-okhttp = "5.0.0-alpha.14" # Major version is locked by Tachiyomi extensions
-javalin = "6.4.0"
-jackson = "2.18.2" # jackson version locked by javalin, ref: `io.javalin.core.util.OptionalDependency`
-exposed = "0.59.0"
-dex2jar = "v64" # Stuck until https://github.com/ThexXTURBOXx/dex2jar/issues/27 is fixed
-polyglot = "24.1.2"
+kotlin = "2.2.21"
+coroutines = "1.10.2"
+serialization = "1.9.0"
+jvmTarget = "21"
+okhttp = "5.3.2" # Major version is locked by Tachiyomi extensions
+javalin = "6.7.0"
+jte = "3.2.1"
+jackson = "2.18.3" # jackson version locked by javalin, ref: `io.javalin.core.util.OptionalDependency`
+exposed = "0.61.0"
+dex2jar = "2.4.33"
+polyglot = "24.2.2"
 settings = "1.3.0"
 twelvemonkeys = "3.12.0"
-graphqlkotlin = "8.3.0"
-xmlserialization = "0.90.3"
-ktlint = "1.5.0"
-koin = "4.0.2"
+graphqlkotlin = "8.8.1"
+xmlserialization = "0.91.3"
+ktlint = "1.8.0"
+koin = "4.1.1"
+moko = "0.25.2"
 
 [libraries]
 # Kotlin
@@ -34,28 +37,30 @@ serialization-xml-core = { module = "io.github.pdvrieze.xmlutil:core", version.r
 serialization-xml = { module = "io.github.pdvrieze.xmlutil:serialization-jvm", version.ref = "xmlserialization" }
 
 # Logging
-slf4japi = "org.slf4j:slf4j-api:2.0.16"
-logback = "ch.qos.logback:logback-classic:1.5.16"
-kotlinlogging = "io.github.oshai:kotlin-logging-jvm:7.0.4"
+slf4japi = "org.slf4j:slf4j-api:2.0.17"
+logback = "ch.qos.logback:logback-classic:1.5.21"
+kotlinlogging = "io.github.oshai:kotlin-logging-jvm:7.0.13"
 
 # OkHttp
 okhttp-core = { module = "com.squareup.okhttp3:okhttp", version.ref = "okhttp" }
 okhttp-logging = { module = "com.squareup.okhttp3:logging-interceptor", version.ref = "okhttp" }
 okhttp-dnsoverhttps = { module = "com.squareup.okhttp3:okhttp-dnsoverhttps", version.ref = "okhttp" }
 okhttp-brotli = { module = "com.squareup.okhttp3:okhttp-brotli", version.ref = "okhttp" }
-okio = "com.squareup.okio:okio:3.10.2"
+okio = "com.squareup.okio:okio:3.16.4"
 
 # Javalin api
 javalin-core = { module = "io.javalin:javalin", version.ref = "javalin" }
 javalin-openapi = { module = "io.javalin:javalin-openapi", version.ref = "javalin" }
+javalin-rendering = { module = "io.javalin:javalin-rendering", version.ref = "javalin" }
 jackson-databind = { module = "com.fasterxml.jackson.core:jackson-databind", version.ref = "jackson" }
 jackson-kotlin = { module = "com.fasterxml.jackson.module:jackson-module-kotlin", version.ref = "jackson" }
 jackson-annotations = { module = "com.fasterxml.jackson.core:jackson-annotations", version.ref = "jackson" }
+jte = { module = "gg.jte:jte", version.ref = "jte" }
+kte = { module = "gg.jte:jte-kotlin", version.ref = "jte" }
 
 # GraphQL
 graphql-kotlin-server = { module = "com.expediagroup:graphql-kotlin-server", version.ref = "graphqlkotlin" }
 graphql-kotlin-scheme = { module = "com.expediagroup:graphql-kotlin-schema-generator", version.ref = "graphqlkotlin" }
-graphql-java-core = "com.graphql-java:graphql-java:22.3" # Major version locked by graphql-kotlin
 graphql-java-scalars = "com.graphql-java:graphql-java-extended-scalars:22.0"
 
 # Exposed ORM
@@ -63,10 +68,12 @@ exposed-core = { module = "org.jetbrains.exposed:exposed-core", version.ref = "e
 exposed-dao = { module = "org.jetbrains.exposed:exposed-dao", version.ref = "exposed" }
 exposed-jdbc = { module = "org.jetbrains.exposed:exposed-jdbc", version.ref = "exposed" }
 exposed-javatime = { module = "org.jetbrains.exposed:exposed-java-time", version.ref = "exposed" }
+postgres = "org.postgresql:postgresql:42.7.8"
 h2 = "com.h2database:h2:1.4.200" # current database driver, can't update to h2 v2 without sql migration
+hikaricp = "com.zaxxer:HikariCP:7.0.2"
 
 # Exposed Migrations
-exposed-migrations = "com.github.Suwayomi:exposed-migrations:3.7.0"
+exposed-migrations = "com.github.Suwayomi:exposed-migrations:3.8.0"
 
 # Dependency Injection
 koin-core = { module = "io.insert-koin:koin-core", version.ref = "koin" }
@@ -79,10 +86,10 @@ systemtray-desktop = "com.dorkbox:Desktop:1.1" # version locked by SystemTray
 # dependencies of Tachiyomi extensions
 injekt = "com.github.null2264:injekt-koin:ee267b2e27"
 rxjava = "io.reactivex:rxjava:1.3.8"
-jsoup = "org.jsoup:jsoup:1.18.3"
+jsoup = "org.jsoup:jsoup:1.21.2"
 
 # Config
-config = "com.typesafe:config:1.4.3"
+config = "com.typesafe:config:1.4.5"
 config4k = "io.github.config4k:config4k:0.7.0"
 
 # Sort
@@ -92,26 +99,26 @@ sort = "com.github.gpanther:java-nat-sort:natural-comparator-1.1"
 android-stubs = "com.github.Suwayomi:android-jar:1.0.0"
 
 # Asm modificiation
-asm = "org.ow2.asm:asm:9.5" # version locked by Dex2Jar
-dex2jar-translator = { module = "com.github.ThexXTURBOXx.dex2jar:dex-translator", version.ref = "dex2jar" }
-dex2jar-tools = { module = "com.github.ThexXTURBOXx.dex2jar:dex-tools", version.ref = "dex2jar" }
+asm = "org.ow2.asm:asm:9.9" # version locked by Dex2Jar
+dex2jar-translator = { module = "de.femtopedia.dex2jar:dex-translator", version.ref = "dex2jar" }
+dex2jar-tools = { module = "de.femtopedia.dex2jar:dex-tools", version.ref = "dex2jar" }
 
 # APK
 apk-parser = "net.dongliu:apk-parser:2.6.10"
-apksig = "com.android.tools.build:apksig:8.8.1"
+apksig = "com.android.tools.build:apksig:8.13.1"
 
 # Xml
 xmlpull = "xmlpull:xmlpull:1.1.3.4a"
 
 # Disk & File
-appdirs = "net.harawata:appdirs:1.3.0"
+appdirs = "ca.gosyer:kotlin-multiplatform-appdirs:2.0.0"
 cache4k = "io.github.reactivecircus.cache4k:cache4k:0.14.0"
 zip4j = "net.lingala.zip4j:zip4j:2.11.5"
-commonscompress = "org.apache.commons:commons-compress:1.27.1"
-junrar = "com.github.junrar:junrar:7.5.5"
+commonscompress = "org.apache.commons:commons-compress:1.28.0"
+junrar = "com.github.junrar:junrar:7.5.7"
 
 # AES/CBC/PKCS7Padding Cypher provider
-bouncycastle = "org.bouncycastle:bcprov-jdk18on:1.80"
+bouncycastle = "org.bouncycastle:bcprov-jdk18on:1.83"
 
 # AndroidX annotations
 android-annotations = "androidx.annotation:annotation:1.9.1"
@@ -125,7 +132,7 @@ settings-core = { module = "com.russhwolf:multiplatform-settings-jvm", version.r
 settings-serialization = { module = "com.russhwolf:multiplatform-settings-serialization-jvm", version.ref = "settings" }
 
 # ICU4J
-icu4j = "com.ibm.icu:icu4j:76.1"
+icu4j = "com.ibm.icu:icu4j:78.1"
 
 # Image Decoding implementation provider
 twelvemonkeys-common-lang = { module = "com.twelvemonkeys.common:common-lang", version.ref = "twelvemonkeys" }
@@ -136,8 +143,10 @@ twelvemonkeys-imageio-metadata = { module = "com.twelvemonkeys.imageio:imageio-m
 twelvemonkeys-imageio-jpeg = { module = "com.twelvemonkeys.imageio:imageio-jpeg", version.ref = "twelvemonkeys" }
 twelvemonkeys-imageio-webp = { module = "com.twelvemonkeys.imageio:imageio-webp", version.ref = "twelvemonkeys" }
 
+imageio-webp = "com.github.usefulness:webp-imageio:0.10.2"
+
 # Testing
-mockk = "io.mockk:mockk:1.13.16"
+mockk = "io.mockk:mockk:1.14.7"
 
 # cron scheduler
 cron4j = "it.sauronsoftware.cron4j:cron4j:2.2.5"
@@ -145,25 +154,41 @@ cron4j = "it.sauronsoftware.cron4j:cron4j:2.2.5"
 # cron-utils
 cronUtils = "com.cronutils:cron-utils:9.2.1"
 
+# Webview
+kcef = "dev.datlag:kcef:2024.04.20.4"
+
+# User
+jwt = "com.auth0:java-jwt:4.5.0"
+
 # lint - used for renovate to update ktlint version
 ktlint = { module = "com.pinterest.ktlint:ktlint-cli", version.ref = "ktlint" }
+
+# moko
+moko = { module = "dev.icerock.moko:resources", version.ref = "moko" }
 
 [plugins]
 # Kotlin
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin"}
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin"}
+kotlin-multiplatform = { id = "org.jetbrains.kotlin.multiplatform", version.ref = "kotlin"}
 
 # Linter
-ktlint = { id = "org.jlleitschuh.gradle.ktlint", version = "12.1.2"}
+ktlint = { id = "org.jlleitschuh.gradle.ktlint", version = "14.0.1"}
 
 # Build config
-buildconfig = { id = "com.github.gmazzo.buildconfig", version = "5.5.1"}
+buildconfig = { id = "com.github.gmazzo.buildconfig", version = "6.0.6"}
 
 # Download
 download = { id = "de.undercouch.download", version = "5.6.0"}
 
 # ShadowJar
-shadowjar = { id = "com.github.johnrengelman.shadow", version = "8.1.1"}
+shadowjar = { id = "com.gradleup.shadow", version = "8.3.9"}
+
+# Moko
+moko = { id = "dev.icerock.mobile.multiplatform-resources", version.ref = "moko" }
+
+# JTE
+jte = { id = "gg.jte.gradle", version.ref = "jte" }
 
 [bundles]
 shared = [
@@ -186,7 +211,8 @@ shared = [
     "dex2jar-translator",
     "dex2jar-tools",
     "apk-parser",
-    "jackson-annotations"
+    "jackson-annotations",
+    "kcef"
 ]
 
 sharedTest = [
@@ -203,6 +229,8 @@ okhttp = [
 javalin = [
     "javalin-core",
     #"javalin-openapi",
+    "javalin-rendering",
+    "jte",
 ]
 jackson = [
     "jackson-databind",

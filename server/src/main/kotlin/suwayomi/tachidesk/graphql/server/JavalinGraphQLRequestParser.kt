@@ -61,6 +61,7 @@ class JavalinGraphQLRequestParser : GraphQLRequestParser<Context> {
                 is GraphQLRequest -> {
                     request.copy(variables = request.variables?.modifyFiles(mapItems))
                 }
+
                 is GraphQLBatchRequest -> {
                     request.copy(
                         requests =
@@ -72,7 +73,7 @@ class JavalinGraphQLRequestParser : GraphQLRequestParser<Context> {
                     )
                 }
             }
-        } catch (e: IOException) {
+        } catch (_: IOException) {
             null
         }
     }

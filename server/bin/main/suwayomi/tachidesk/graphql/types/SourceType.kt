@@ -11,6 +11,7 @@ import com.expediagroup.graphql.server.extensions.getValueFromDataLoader
 import eu.kanade.tachiyomi.source.CatalogueSource
 import eu.kanade.tachiyomi.source.ConfigurableSource
 import eu.kanade.tachiyomi.source.model.FilterList
+import eu.kanade.tachiyomi.source.online.HttpSource
 import graphql.schema.DataFetchingEnvironment
 import org.jetbrains.exposed.sql.ResultRow
 import org.jetbrains.exposed.sql.selectAll
@@ -44,6 +45,7 @@ class SourceType(
     val isConfigurable: Boolean,
     val isNsfw: Boolean,
     val displayName: String,
+    val baseUrl: String?,
 ) : Node {
     constructor(source: SourceDataClass) : this(
         id = source.id.toLong(),
@@ -54,6 +56,7 @@ class SourceType(
         isConfigurable = source.isConfigurable,
         isNsfw = source.isNsfw,
         displayName = source.displayName,
+        baseUrl = source.baseUrl,
     )
 
     constructor(row: ResultRow, sourceExtension: ResultRow, catalogueSource: CatalogueSource) : this(
@@ -65,6 +68,7 @@ class SourceType(
         isConfigurable = catalogueSource is ConfigurableSource,
         isNsfw = row[SourceTable.isNsfw],
         displayName = catalogueSource.toString(),
+        baseUrl = catalogueSource.runCatching { (catalogueSource as? HttpSource)?.baseUrl }.getOrNull(),
     )
 
     fun manga(dataFetchingEnvironment: DataFetchingEnvironment): CompletableFuture<MangaNodeList> =
@@ -200,12 +204,27 @@ data class GroupFilter(
 
 fun filterOf(filter: SourceFilter<*>): Filter =
     when (filter) {
-        is SourceFilter.Header -> HeaderFilter(filter.name)
-        is SourceFilter.Separator -> SeparatorFilter(filter.name)
-        is SourceFilter.Select<*> -> SelectFilter(filter.name, filter.displayValues, filter.state)
-        is SourceFilter.Text -> TextFilter(filter.name, filter.state)
-        is SourceFilter.CheckBox -> CheckBoxFilter(filter.name, filter.state)
-        is SourceFilter.TriState ->
+        is SourceFilter.Header -> {
+            HeaderFilter(filter.name)
+        }
+
+        is SourceFilter.Separator -> {
+            SeparatorFilter(filter.name)
+        }
+
+        is SourceFilter.Select<*> -> {
+            SelectFilter(filter.name, filter.displayValues, filter.state)
+        }
+
+        is SourceFilter.Text -> {
+            TextFilter(filter.name, filter.state)
+        }
+
+        is SourceFilter.CheckBox -> {
+            CheckBoxFilter(filter.name, filter.state)
+        }
+
+        is SourceFilter.TriState -> {
             TriStateFilter(
                 filter.name,
                 when (filter.state) {
@@ -214,13 +233,22 @@ fun filterOf(filter: SourceFilter<*>): Filter =
                     else -> TriState.IGNORE
                 },
             )
-        is SourceFilter.Group<*> ->
+        }
+
+        is SourceFilter.Group<*> -> {
             GroupFilter(
                 filter.name,
                 filter.state.map { filterOf(it as SourceFilter<*>) },
             )
-        is SourceFilter.Sort -> SortFilter(filter.name, filter.values.asList(), filter.state?.let(SortFilter::SortSelection))
-        else -> throw RuntimeException("sealed class cannot have more subtypes!")
+        }
+
+        is SourceFilter.Sort -> {
+            SortFilter(filter.name, filter.values.asList(), filter.state?.let(SortFilter::SortSelection))
+        }
+
+        else -> {
+            throw RuntimeException("sealed class cannot have more subtypes!")
+        }
     }
 
 /*sealed interface FilterChange {
@@ -282,25 +310,31 @@ fun updateFilterList(
             is SourceFilter.Header -> {
                 // NOOP
             }
+
             is SourceFilter.Separator -> {
                 // NOOP
             }
+
             is SourceFilter.Select<*> -> {
                 filter.state = change.selectState
                     ?: throw Exception("Expected select state change at position ${change.position}")
             }
+
             is SourceFilter.Text -> {
                 filter.state = change.textState
                     ?: throw Exception("Expected text state change at position ${change.position}")
             }
+
             is SourceFilter.CheckBox -> {
                 filter.state = change.checkBoxState
                     ?: throw Exception("Expected checkbox state change at position ${change.position}")
             }
+
             is SourceFilter.TriState -> {
                 filter.state = change.triState?.ordinal
                     ?: throw Exception("Expected tri state change at position ${change.position}")
             }
+
             is SourceFilter.Group<*> -> {
                 val groupChange =
                     change.groupChange
@@ -311,20 +345,24 @@ fun updateFilterList(
                         groupFilter.state = groupChange.checkBoxState
                             ?: throw Exception("Expected checkbox state change at position ${change.position}")
                     }
+
                     is SourceFilter.TriState -> {
                         groupFilter.state = groupChange.triState?.ordinal
                             ?: throw Exception("Expected tri state change at position ${change.position}")
                     }
+
                     is SourceFilter.Text -> {
                         groupFilter.state = groupChange.textState
                             ?: throw Exception("Expected text state change at position ${change.position}")
                     }
+
                     is SourceFilter.Select<*> -> {
                         groupFilter.state = groupChange.selectState
                             ?: throw Exception("Expected select state change at position ${change.position}")
                     }
                 }
             }
+
             is SourceFilter.Sort -> {
                 filter.state = change.sortState?.run {
                     SourceFilter.Sort.Selection(index, ascending)
@@ -338,28 +376,31 @@ fun updateFilterList(
 sealed interface Preference
 
 data class SwitchPreference(
-    val key: String,
-    val title: String,
+    val key: String?,
+    val title: String?,
     val summary: String?,
     val visible: Boolean,
+    val enabled: Boolean,
     val currentValue: Boolean?,
     val default: Boolean,
 ) : Preference
 
 data class CheckBoxPreference(
-    val key: String,
-    val title: String,
+    val key: String?,
+    val title: String?,
     val summary: String?,
     val visible: Boolean,
+    val enabled: Boolean,
     val currentValue: Boolean?,
     val default: Boolean,
 ) : Preference
 
 data class EditTextPreference(
-    val key: String,
+    val key: String?,
     val title: String?,
     val summary: String?,
     val visible: Boolean,
+    val enabled: Boolean,
     val currentValue: String?,
     val default: String?,
     val dialogTitle: String?,
@@ -368,10 +409,11 @@ data class EditTextPreference(
 ) : Preference
 
 data class ListPreference(
-    val key: String,
+    val key: String?,
     val title: String?,
     val summary: String?,
     val visible: Boolean,
+    val enabled: Boolean,
     val currentValue: String?,
     val default: String?,
     val entries: List<String>,
@@ -379,10 +421,11 @@ data class ListPreference(
 ) : Preference
 
 data class MultiSelectListPreference(
-    val key: String,
+    val key: String?,
     val title: String?,
     val summary: String?,
     val visible: Boolean,
+    val enabled: Boolean,
     val currentValue: List<String>?,
     val default: List<String>?,
     val dialogTitle: String?,
@@ -393,53 +436,66 @@ data class MultiSelectListPreference(
 
 fun preferenceOf(preference: SourcePreference): Preference =
     when (preference) {
-        is SourceSwitchPreference ->
+        is SourceSwitchPreference -> {
             SwitchPreference(
                 preference.key,
-                preference.title.toString(),
+                preference.title?.toString(),
                 preference.summary?.toString(),
                 preference.visible,
+                preference.isEnabled,
                 preference.currentValue as Boolean,
                 preference.defaultValue as Boolean,
             )
-        is SourceCheckBoxPreference ->
+        }
+
+        is SourceCheckBoxPreference -> {
             CheckBoxPreference(
                 preference.key,
-                preference.title.toString(),
+                preference.title?.toString(),
                 preference.summary?.toString(),
                 preference.visible,
+                preference.isEnabled,
                 preference.currentValue as Boolean,
                 preference.defaultValue as Boolean,
             )
-        is SourceEditTextPreference ->
+        }
+
+        is SourceEditTextPreference -> {
             EditTextPreference(
                 preference.key,
                 preference.title?.toString(),
                 preference.summary?.toString(),
                 preference.visible,
+                preference.isEnabled,
                 (preference.currentValue as CharSequence?)?.toString(),
                 (preference.defaultValue as CharSequence?)?.toString(),
                 preference.dialogTitle?.toString(),
                 preference.dialogMessage?.toString(),
                 preference.text,
             )
-        is SourceListPreference ->
+        }
+
+        is SourceListPreference -> {
             ListPreference(
                 preference.key,
                 preference.title?.toString(),
                 preference.summary?.toString(),
                 preference.visible,
+                preference.isEnabled,
                 (preference.currentValue as CharSequence?)?.toString(),
                 (preference.defaultValue as CharSequence?)?.toString(),
                 preference.entries.map { it.toString() },
                 preference.entryValues.map { it.toString() },
             )
-        is SourceMultiSelectListPreference ->
+        }
+
+        is SourceMultiSelectListPreference -> {
             MultiSelectListPreference(
                 preference.key,
                 preference.title?.toString(),
                 preference.summary?.toString(),
                 preference.visible,
+                preference.isEnabled,
                 (preference.currentValue as Collection<*>?)?.map { it.toString() },
                 (preference.defaultValue as Collection<*>?)?.map { it.toString() },
                 preference.dialogTitle?.toString(),
@@ -447,5 +503,9 @@ fun preferenceOf(preference: SourcePreference): Preference =
                 preference.entries.map { it.toString() },
                 preference.entryValues.map { it.toString() },
             )
-        else -> throw RuntimeException("sealed class cannot have more subtypes!")
+        }
+
+        else -> {
+            throw RuntimeException("sealed class cannot have more subtypes!")
+        }
     }

@@ -1,3 +1,5 @@
+@file:Suppress("ktlint")
+
 /*
  * Copyright (C) Contributors to the Suwayomi project
  *
@@ -7,140 +9,199 @@
 
 package suwayomi.tachidesk.graphql.types
 
+
 import com.expediagroup.graphql.generator.annotations.GraphQLDeprecated
+import com.expediagroup.graphql.generator.annotations.GraphQLIgnore
 import suwayomi.tachidesk.graphql.server.primitives.Node
 import suwayomi.tachidesk.server.ServerConfig
 import suwayomi.tachidesk.server.serverConfig
-import suwayomi.tachidesk.server.util.WebUIChannel
-import suwayomi.tachidesk.server.util.WebUIFlavor
-import suwayomi.tachidesk.server.util.WebUIInterface
+import suwayomi.tachidesk.server.settings.SettingsRegistry
+import suwayomi.tachidesk.graphql.types.WebUIFlavor
+import suwayomi.tachidesk.graphql.types.WebUIInterface
+import suwayomi.tachidesk.graphql.types.WebUIChannel
+import suwayomi.tachidesk.manga.impl.backup.proto.models.BackupSettingsDownloadConversionType
+import suwayomi.tachidesk.graphql.types.AuthMode
+import kotlin.time.Duration
+import org.jetbrains.exposed.sql.SortOrder
+import suwayomi.tachidesk.graphql.types.CbzMediaType
+import suwayomi.tachidesk.graphql.types.KoreaderSyncChecksumMethod
+import suwayomi.tachidesk.graphql.types.KoreaderSyncLegacyStrategy
+import suwayomi.tachidesk.graphql.types.KoreaderSyncConflictStrategy
+import suwayomi.tachidesk.graphql.types.DatabaseType
+
 
 interface Settings : Node {
+    // Network
     val ip: String?
     val port: Int?
-
-    // proxy
+    // Proxy
     val socksProxyEnabled: Boolean?
     val socksProxyVersion: Int?
     val socksProxyHost: String?
     val socksProxyPort: String?
     val socksProxyUsername: String?
     val socksProxyPassword: String?
-
-    // webUI
-//    requires restart (found no way to mutate (serve + "unserve") served files during runtime), exclude for now
-//    val webUIEnabled: Boolean,
+    // WebUI
     val webUIFlavor: WebUIFlavor?
     val initialOpenInBrowserEnabled: Boolean?
     val webUIInterface: WebUIInterface?
     val electronPath: String?
     val webUIChannel: WebUIChannel?
     val webUIUpdateCheckInterval: Double?
-
-    // downloader
+    @GraphQLIgnore
+    val webUIEnabled: Boolean?
+    @GraphQLIgnore
+    val webUISubpath: String?
+    // Downloader
     val downloadAsCbz: Boolean?
     val downloadsPath: String?
     val autoDownloadNewChapters: Boolean?
     val excludeEntryWithUnreadChapters: Boolean?
-
-    @GraphQLDeprecated(
-        "Replaced with autoDownloadNewChaptersLimit",
-        replaceWith = ReplaceWith("autoDownloadNewChaptersLimit"),
-    )
+    @GraphQLDeprecated("Replaced with autoDownloadNewChaptersLimit", ReplaceWith("autoDownloadNewChaptersLimit"))
     val autoDownloadAheadLimit: Int?
     val autoDownloadNewChaptersLimit: Int?
     val autoDownloadIgnoreReUploads: Boolean?
-
-    // extension
+    val downloadConversions: List<SettingsDownloadConversion>?
+    val serveConversions: List<SettingsDownloadConversion>?
+    // Extension/Source
     val extensionRepos: List<String>?
-
-    // requests
     val maxSourcesInParallel: Int?
-
-    // updater
+    // Library updates
     val excludeUnreadChapters: Boolean?
     val excludeNotStarted: Boolean?
     val excludeCompleted: Boolean?
     val globalUpdateInterval: Double?
     val updateMangas: Boolean?
-
     // Authentication
+    @GraphQLDeprecated("Removed - prefer authMode", ReplaceWith("authMode"))
     val basicAuthEnabled: Boolean?
+    val authUsername: String?
+    val authPassword: String?
+    val authMode: AuthMode?
+    val jwtAudience: String?
+    val jwtTokenExpiry: Duration?
+    val jwtRefreshExpiry: Duration?
+    @GraphQLDeprecated("Removed - prefer authUsername", ReplaceWith("authUsername"))
     val basicAuthUsername: String?
+    @GraphQLDeprecated("Removed - prefer authPassword", ReplaceWith("authPassword"))
     val basicAuthPassword: String?
-
-    // misc
+    // Misc
     val debugLogsEnabled: Boolean?
-
     @GraphQLDeprecated("Removed - does not do anything")
     val gqlDebugLogsEnabled: Boolean?
     val systemTrayEnabled: Boolean?
     val maxLogFiles: Int?
     val maxLogFileSize: String?
     val maxLogFolderSize: String?
-
-    // backup
+    // Backup
     val backupPath: String?
     val backupTime: String?
     val backupInterval: Int?
     val backupTTL: Int?
-
-    // local source
+    val autoBackupIncludeManga: Boolean?
+    val autoBackupIncludeCategories: Boolean?
+    val autoBackupIncludeChapters: Boolean?
+    val autoBackupIncludeTracking: Boolean?
+    val autoBackupIncludeHistory: Boolean?
+    val autoBackupIncludeClientData: Boolean?
+    val autoBackupIncludeServerSettings: Boolean?
+    // Local source
     val localSourcePath: String?
-
-    // cloudflare bypass
+    // Cloudflare
     val flareSolverrEnabled: Boolean?
     val flareSolverrUrl: String?
     val flareSolverrTimeout: Int?
     val flareSolverrSessionName: String?
     val flareSolverrSessionTtl: Int?
     val flareSolverrAsResponseFallback: Boolean?
+    // OPDS
+    val opdsUseBinaryFileSizes: Boolean?
+    val opdsItemsPerPage: Int?
+    val opdsEnablePageReadProgress: Boolean?
+    val opdsMarkAsReadOnDownload: Boolean?
+    val opdsShowOnlyUnreadChapters: Boolean?
+    val opdsShowOnlyDownloadedChapters: Boolean?
+    val opdsChapterSortOrder: SortOrder?
+    val opdsCbzMimetype: CbzMediaType?
+    // KOReader sync
+    @GraphQLDeprecated("Moved to preference store. User is supposed to use a login/logout mutation", ReplaceWith("MOVE TO PREFERENCES"))
+    val koreaderSyncServerUrl: String?
+    @GraphQLDeprecated("Moved to preference store. User is supposed to use a login/logout mutation", ReplaceWith("MOVE TO PREFERENCES"))
+    val koreaderSyncUsername: String?
+    @GraphQLDeprecated("Moved to preference store. User is supposed to use a login/logout mutation", ReplaceWith("MOVE TO PREFERENCES"))
+    val koreaderSyncUserkey: String?
+    @GraphQLDeprecated("Moved to preference store. Is supposed to be random and gets auto generated", ReplaceWith("MOVE TO PREFERENCES"))
+    val koreaderSyncDeviceId: String?
+    val koreaderSyncChecksumMethod: KoreaderSyncChecksumMethod?
+    @GraphQLDeprecated("Replaced with koreaderSyncStrategyForward and koreaderSyncStrategyBackward", ReplaceWith("koreaderSyncStrategyForward, koreaderSyncStrategyBackward"))
+    val koreaderSyncStrategy: KoreaderSyncLegacyStrategy?
+    val koreaderSyncPercentageTolerance: Double?
+    val koreaderSyncStrategyForward: KoreaderSyncConflictStrategy?
+    val koreaderSyncStrategyBackward: KoreaderSyncConflictStrategy?
+    // Database
+    val databaseType: DatabaseType?
+    val databaseUrl: String?
+    val databaseUsername: String?
+    val databasePassword: String?
+    val useHikariConnectionPool: Boolean?
 }
 
 data class PartialSettingsType(
+    // Network
     override val ip: String?,
     override val port: Int?,
-    // proxy
+    // Proxy
     override val socksProxyEnabled: Boolean?,
     override val socksProxyVersion: Int?,
     override val socksProxyHost: String?,
     override val socksProxyPort: String?,
     override val socksProxyUsername: String?,
     override val socksProxyPassword: String?,
-    // webUI
+    // WebUI
     override val webUIFlavor: WebUIFlavor?,
     override val initialOpenInBrowserEnabled: Boolean?,
     override val webUIInterface: WebUIInterface?,
     override val electronPath: String?,
     override val webUIChannel: WebUIChannel?,
     override val webUIUpdateCheckInterval: Double?,
-    // downloader
+    @GraphQLIgnore
+    override val webUIEnabled: Boolean?,
+    @GraphQLIgnore
+    override val webUISubpath: String?,
+    // Downloader
     override val downloadAsCbz: Boolean?,
     override val downloadsPath: String?,
     override val autoDownloadNewChapters: Boolean?,
     override val excludeEntryWithUnreadChapters: Boolean?,
-    @GraphQLDeprecated(
-        "Replaced with autoDownloadNewChaptersLimit",
-        replaceWith = ReplaceWith("autoDownloadNewChaptersLimit"),
-    )
+    @GraphQLDeprecated("Replaced with autoDownloadNewChaptersLimit", ReplaceWith("autoDownloadNewChaptersLimit"))
     override val autoDownloadAheadLimit: Int?,
     override val autoDownloadNewChaptersLimit: Int?,
     override val autoDownloadIgnoreReUploads: Boolean?,
-    // extension
+    override val downloadConversions: List<SettingsDownloadConversionType>?,
+    override val serveConversions: List<SettingsDownloadConversionType>?,
+    // Extension/Source
     override val extensionRepos: List<String>?,
-    // requests
     override val maxSourcesInParallel: Int?,
-    // updater
+    // Library updates
     override val excludeUnreadChapters: Boolean?,
     override val excludeNotStarted: Boolean?,
     override val excludeCompleted: Boolean?,
     override val globalUpdateInterval: Double?,
     override val updateMangas: Boolean?,
     // Authentication
+    @GraphQLDeprecated("Removed - prefer authMode", ReplaceWith("authMode"))
     override val basicAuthEnabled: Boolean?,
+    override val authUsername: String?,
+    override val authPassword: String?,
+    override val authMode: AuthMode?,
+    override val jwtAudience: String?,
+    override val jwtTokenExpiry: Duration?,
+    override val jwtRefreshExpiry: Duration?,
+    @GraphQLDeprecated("Removed - prefer authUsername", ReplaceWith("authUsername"))
     override val basicAuthUsername: String?,
+    @GraphQLDeprecated("Removed - prefer authPassword", ReplaceWith("authPassword"))
     override val basicAuthPassword: String?,
-    // misc
+    // Misc
     override val debugLogsEnabled: Boolean?,
     @GraphQLDeprecated("Removed - does not do anything")
     override val gqlDebugLogsEnabled: Boolean?,
@@ -148,66 +209,115 @@ data class PartialSettingsType(
     override val maxLogFiles: Int?,
     override val maxLogFileSize: String?,
     override val maxLogFolderSize: String?,
-    // backup
+    // Backup
     override val backupPath: String?,
     override val backupTime: String?,
     override val backupInterval: Int?,
     override val backupTTL: Int?,
-    // local source
+    override val autoBackupIncludeManga: Boolean?,
+    override val autoBackupIncludeCategories: Boolean?,
+    override val autoBackupIncludeChapters: Boolean?,
+    override val autoBackupIncludeTracking: Boolean?,
+    override val autoBackupIncludeHistory: Boolean?,
+    override val autoBackupIncludeClientData: Boolean?,
+    override val autoBackupIncludeServerSettings: Boolean?,
+    // Local source
     override val localSourcePath: String?,
-    // cloudflare bypass
+    // Cloudflare
     override val flareSolverrEnabled: Boolean?,
     override val flareSolverrUrl: String?,
     override val flareSolverrTimeout: Int?,
     override val flareSolverrSessionName: String?,
     override val flareSolverrSessionTtl: Int?,
     override val flareSolverrAsResponseFallback: Boolean?,
+    // OPDS
+    override val opdsUseBinaryFileSizes: Boolean?,
+    override val opdsItemsPerPage: Int?,
+    override val opdsEnablePageReadProgress: Boolean?,
+    override val opdsMarkAsReadOnDownload: Boolean?,
+    override val opdsShowOnlyUnreadChapters: Boolean?,
+    override val opdsShowOnlyDownloadedChapters: Boolean?,
+    override val opdsChapterSortOrder: SortOrder?,
+    override val opdsCbzMimetype: CbzMediaType?,
+    // KOReader sync
+    @GraphQLDeprecated("Moved to preference store. User is supposed to use a login/logout mutation", ReplaceWith("MOVE TO PREFERENCES"))
+    override val koreaderSyncServerUrl: String?,
+    @GraphQLDeprecated("Moved to preference store. User is supposed to use a login/logout mutation", ReplaceWith("MOVE TO PREFERENCES"))
+    override val koreaderSyncUsername: String?,
+    @GraphQLDeprecated("Moved to preference store. User is supposed to use a login/logout mutation", ReplaceWith("MOVE TO PREFERENCES"))
+    override val koreaderSyncUserkey: String?,
+    @GraphQLDeprecated("Moved to preference store. Is supposed to be random and gets auto generated", ReplaceWith("MOVE TO PREFERENCES"))
+    override val koreaderSyncDeviceId: String?,
+    override val koreaderSyncChecksumMethod: KoreaderSyncChecksumMethod?,
+    @GraphQLDeprecated("Replaced with koreaderSyncStrategyForward and koreaderSyncStrategyBackward", ReplaceWith("koreaderSyncStrategyForward, koreaderSyncStrategyBackward"))
+    override val koreaderSyncStrategy: KoreaderSyncLegacyStrategy?,
+    override val koreaderSyncPercentageTolerance: Double?,
+    override val koreaderSyncStrategyForward: KoreaderSyncConflictStrategy?,
+    override val koreaderSyncStrategyBackward: KoreaderSyncConflictStrategy?,
+    // Database
+    override val databaseType: DatabaseType?,
+    override val databaseUrl: String?,
+    override val databaseUsername: String?,
+    override val databasePassword: String?,
+    override val useHikariConnectionPool: Boolean?,
 ) : Settings
 
 class SettingsType(
+    // Network
     override val ip: String,
     override val port: Int,
-    // proxy
+    // Proxy
     override val socksProxyEnabled: Boolean,
     override val socksProxyVersion: Int,
     override val socksProxyHost: String,
     override val socksProxyPort: String,
     override val socksProxyUsername: String,
     override val socksProxyPassword: String,
-    // webUI
+    // WebUI
     override val webUIFlavor: WebUIFlavor,
     override val initialOpenInBrowserEnabled: Boolean,
     override val webUIInterface: WebUIInterface,
     override val electronPath: String,
     override val webUIChannel: WebUIChannel,
     override val webUIUpdateCheckInterval: Double,
-    // downloader
+    @GraphQLIgnore
+    override val webUIEnabled: Boolean,
+    @GraphQLIgnore
+    override val webUISubpath: String,
+    // Downloader
     override val downloadAsCbz: Boolean,
     override val downloadsPath: String,
     override val autoDownloadNewChapters: Boolean,
     override val excludeEntryWithUnreadChapters: Boolean,
-    @GraphQLDeprecated(
-        "Replaced with autoDownloadNewChaptersLimit",
-        replaceWith = ReplaceWith("autoDownloadNewChaptersLimit"),
-    )
+    @GraphQLDeprecated("Replaced with autoDownloadNewChaptersLimit", ReplaceWith("autoDownloadNewChaptersLimit"))
     override val autoDownloadAheadLimit: Int,
     override val autoDownloadNewChaptersLimit: Int,
-    override val autoDownloadIgnoreReUploads: Boolean?,
-    // extension
+    override val autoDownloadIgnoreReUploads: Boolean,
+    override val downloadConversions: List<SettingsDownloadConversionType>,
+    override val serveConversions: List<SettingsDownloadConversionType>,
+    // Extension/Source
     override val extensionRepos: List<String>,
-    // requests
     override val maxSourcesInParallel: Int,
-    // updater
+    // Library updates
     override val excludeUnreadChapters: Boolean,
     override val excludeNotStarted: Boolean,
     override val excludeCompleted: Boolean,
     override val globalUpdateInterval: Double,
     override val updateMangas: Boolean,
     // Authentication
+    @GraphQLDeprecated("Removed - prefer authMode", ReplaceWith("authMode"))
     override val basicAuthEnabled: Boolean,
+    override val authUsername: String,
+    override val authPassword: String,
+    override val authMode: AuthMode,
+    override val jwtAudience: String,
+    override val jwtTokenExpiry: Duration,
+    override val jwtRefreshExpiry: Duration,
+    @GraphQLDeprecated("Removed - prefer authUsername", ReplaceWith("authUsername"))
     override val basicAuthUsername: String,
+    @GraphQLDeprecated("Removed - prefer authPassword", ReplaceWith("authPassword"))
     override val basicAuthPassword: String,
-    // misc
+    // Misc
     override val debugLogsEnabled: Boolean,
     @GraphQLDeprecated("Removed - does not do anything")
     override val gqlDebugLogsEnabled: Boolean,
@@ -215,51 +325,93 @@ class SettingsType(
     override val maxLogFiles: Int,
     override val maxLogFileSize: String,
     override val maxLogFolderSize: String,
-    // backup
+    // Backup
     override val backupPath: String,
     override val backupTime: String,
     override val backupInterval: Int,
     override val backupTTL: Int,
-    // local source
+    override val autoBackupIncludeManga: Boolean,
+    override val autoBackupIncludeCategories: Boolean,
+    override val autoBackupIncludeChapters: Boolean,
+    override val autoBackupIncludeTracking: Boolean,
+    override val autoBackupIncludeHistory: Boolean,
+    override val autoBackupIncludeClientData: Boolean,
+    override val autoBackupIncludeServerSettings: Boolean,
+    // Local source
     override val localSourcePath: String,
-    // cloudflare bypass
+    // Cloudflare
     override val flareSolverrEnabled: Boolean,
     override val flareSolverrUrl: String,
     override val flareSolverrTimeout: Int,
     override val flareSolverrSessionName: String,
     override val flareSolverrSessionTtl: Int,
     override val flareSolverrAsResponseFallback: Boolean,
+    // OPDS
+    override val opdsUseBinaryFileSizes: Boolean,
+    override val opdsItemsPerPage: Int,
+    override val opdsEnablePageReadProgress: Boolean,
+    override val opdsMarkAsReadOnDownload: Boolean,
+    override val opdsShowOnlyUnreadChapters: Boolean,
+    override val opdsShowOnlyDownloadedChapters: Boolean,
+    override val opdsChapterSortOrder: SortOrder,
+    override val opdsCbzMimetype: CbzMediaType,
+    // KOReader sync
+    @GraphQLDeprecated("Moved to preference store. User is supposed to use a login/logout mutation", ReplaceWith("MOVE TO PREFERENCES"))
+    override val koreaderSyncServerUrl: String,
+    @GraphQLDeprecated("Moved to preference store. User is supposed to use a login/logout mutation", ReplaceWith("MOVE TO PREFERENCES"))
+    override val koreaderSyncUsername: String,
+    @GraphQLDeprecated("Moved to preference store. User is supposed to use a login/logout mutation", ReplaceWith("MOVE TO PREFERENCES"))
+    override val koreaderSyncUserkey: String,
+    @GraphQLDeprecated("Moved to preference store. Is supposed to be random and gets auto generated", ReplaceWith("MOVE TO PREFERENCES"))
+    override val koreaderSyncDeviceId: String,
+    override val koreaderSyncChecksumMethod: KoreaderSyncChecksumMethod,
+    @GraphQLDeprecated("Replaced with koreaderSyncStrategyForward and koreaderSyncStrategyBackward", ReplaceWith("koreaderSyncStrategyForward, koreaderSyncStrategyBackward"))
+    override val koreaderSyncStrategy: KoreaderSyncLegacyStrategy,
+    override val koreaderSyncPercentageTolerance: Double,
+    override val koreaderSyncStrategyForward: KoreaderSyncConflictStrategy,
+    override val koreaderSyncStrategyBackward: KoreaderSyncConflictStrategy,
+    // Database
+    override val databaseType: DatabaseType,
+    override val databaseUrl: String,
+    override val databaseUsername: String,
+    override val databasePassword: String,
+    override val useHikariConnectionPool: Boolean,
 ) : Settings {
+    @Suppress("UNCHECKED_CAST")
     constructor(config: ServerConfig = serverConfig) : this(
+        // Network
         config.ip.value,
         config.port.value,
-        // proxy
+        // Proxy
         config.socksProxyEnabled.value,
         config.socksProxyVersion.value,
         config.socksProxyHost.value,
         config.socksProxyPort.value,
         config.socksProxyUsername.value,
         config.socksProxyPassword.value,
-        // webUI
-        WebUIFlavor.from(config.webUIFlavor.value),
+        // WebUI
+        config.webUIFlavor.value,
         config.initialOpenInBrowserEnabled.value,
-        WebUIInterface.from(config.webUIInterface.value),
+        config.webUIInterface.value,
         config.electronPath.value,
-        WebUIChannel.from(config.webUIChannel.value),
+        config.webUIChannel.value,
         config.webUIUpdateCheckInterval.value,
-        // downloader
+        config.webUIEnabled.value,
+        config.webUISubpath.value,
+        // Downloader
         config.downloadAsCbz.value,
         config.downloadsPath.value,
         config.autoDownloadNewChapters.value,
         config.excludeEntryWithUnreadChapters.value,
-        config.autoDownloadNewChaptersLimit.value, // deprecated
+        config.autoDownloadAheadLimit.value,
         config.autoDownloadNewChaptersLimit.value,
         config.autoDownloadIgnoreReUploads.value,
-        // extension
+        SettingsRegistry.get("downloadConversions")!!.typeInfo.convertToGqlType!!(config.downloadConversions.value) as List<SettingsDownloadConversionType>,
+        SettingsRegistry.get("serveConversions")!!.typeInfo.convertToGqlType!!(config.serveConversions.value) as List<SettingsDownloadConversionType>,
+        // Extension/Source
         config.extensionRepos.value,
-        // requests
         config.maxSourcesInParallel.value,
-        // updater
+        // Library updates
         config.excludeUnreadChapters.value,
         config.excludeNotStarted.value,
         config.excludeCompleted.value,
@@ -267,28 +419,67 @@ class SettingsType(
         config.updateMangas.value,
         // Authentication
         config.basicAuthEnabled.value,
+        config.authUsername.value,
+        config.authPassword.value,
+        config.authMode.value,
+        config.jwtAudience.value,
+        config.jwtTokenExpiry.value,
+        config.jwtRefreshExpiry.value,
         config.basicAuthUsername.value,
         config.basicAuthPassword.value,
-        // misc
+        // Misc
         config.debugLogsEnabled.value,
-        false,
+        config.gqlDebugLogsEnabled.value,
         config.systemTrayEnabled.value,
         config.maxLogFiles.value,
         config.maxLogFileSize.value,
         config.maxLogFolderSize.value,
-        // backup
+        // Backup
         config.backupPath.value,
         config.backupTime.value,
         config.backupInterval.value,
         config.backupTTL.value,
-        // local source
+        config.autoBackupIncludeManga.value,
+        config.autoBackupIncludeCategories.value,
+        config.autoBackupIncludeChapters.value,
+        config.autoBackupIncludeTracking.value,
+        config.autoBackupIncludeHistory.value,
+        config.autoBackupIncludeClientData.value,
+        config.autoBackupIncludeServerSettings.value,
+        // Local source
         config.localSourcePath.value,
-        // cloudflare bypass
+        // Cloudflare
         config.flareSolverrEnabled.value,
         config.flareSolverrUrl.value,
         config.flareSolverrTimeout.value,
         config.flareSolverrSessionName.value,
         config.flareSolverrSessionTtl.value,
         config.flareSolverrAsResponseFallback.value,
+        // OPDS
+        config.opdsUseBinaryFileSizes.value,
+        config.opdsItemsPerPage.value,
+        config.opdsEnablePageReadProgress.value,
+        config.opdsMarkAsReadOnDownload.value,
+        config.opdsShowOnlyUnreadChapters.value,
+        config.opdsShowOnlyDownloadedChapters.value,
+        config.opdsChapterSortOrder.value,
+        config.opdsCbzMimetype.value,
+        // KOReader sync
+        config.koreaderSyncServerUrl.value,
+        config.koreaderSyncUsername.value,
+        config.koreaderSyncUserkey.value,
+        config.koreaderSyncDeviceId.value,
+        config.koreaderSyncChecksumMethod.value,
+        config.koreaderSyncStrategy.value,
+        config.koreaderSyncPercentageTolerance.value,
+        config.koreaderSyncStrategyForward.value,
+        config.koreaderSyncStrategyBackward.value,
+        // Database
+        config.databaseType.value,
+        config.databaseUrl.value,
+        config.databaseUsername.value,
+        config.databasePassword.value,
+        config.useHikariConnectionPool.value,
     )
 }
+

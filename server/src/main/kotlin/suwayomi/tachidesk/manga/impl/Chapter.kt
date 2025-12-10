@@ -24,7 +24,6 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.inList
 import org.jetbrains.exposed.sql.and
 import org.jetbrains.exposed.sql.batchInsert
 import org.jetbrains.exposed.sql.deleteWhere
-import org.jetbrains.exposed.sql.insert
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.statements.BatchUpdateStatement
 import org.jetbrains.exposed.sql.transactions.transaction
@@ -102,7 +101,7 @@ object Chapter {
             }
 
         val chapterIds = chapterList.map { dbChapterMap.getValue(it.url)[ChapterTable.id] }
-        val chapterMetas = getChaptersMetaMaps(chapterIds)
+        val chapterMetas = getChaptersMetaMaps(chapterIds.map { it.value })
 
         return chapterList.mapIndexed { index, it ->
 
@@ -126,7 +125,7 @@ object Chapter {
                 downloaded = dbChapter[ChapterTable.isDownloaded],
                 pageCount = dbChapter[ChapterTable.pageCount],
                 chapterCount = chapterList.size,
-                meta = chapterMetas.getValue(dbChapter[ChapterTable.id]),
+                meta = chapterMetas.getValue(dbChapter[ChapterTable.id].value),
             )
         }
     }
@@ -261,9 +260,10 @@ object Chapter {
 
                 // we got some clean up due
                 if (chaptersIdsToDelete.isNotEmpty()) {
+                    DownloadManager.dequeue(chaptersIdsToDelete)
                     transaction {
-                        PageTable.deleteWhere { PageTable.chapter inList chaptersIdsToDelete }
-                        ChapterTable.deleteWhere { ChapterTable.id inList chaptersIdsToDelete }
+                        PageTable.deleteWhere { chapter inList chaptersIdsToDelete }
+                        ChapterTable.deleteWhere { id inList chaptersIdsToDelete }
                     }
                 }
 
@@ -321,7 +321,7 @@ object Chapter {
                     }
 
                     MangaTable.update({ MangaTable.id eq mangaId }) {
-                        it[MangaTable.chaptersLastFetchedAt] = Instant.now().epochSecond
+                        it[chaptersLastFetchedAt] = Instant.now().epochSecond
                     }
                 }
 
@@ -431,33 +431,46 @@ object Chapter {
         isBookmarked: Boolean?,
         markPrevRead: Boolean?,
         lastPageRead: Int?,
-    ) {
-        transaction {
-            if (listOf(isRead, isBookmarked, lastPageRead).any { it != null }) {
-                ChapterTable.update({ (ChapterTable.manga eq mangaId) and (ChapterTable.sourceOrder eq chapterIndex) }) { update ->
-                    isRead?.also {
-                        update[ChapterTable.isRead] = it
-                    }
-                    isBookmarked?.also {
-                        update[ChapterTable.isBookmarked] = it
-                    }
-                    lastPageRead?.also {
-                        update[ChapterTable.lastPageRead] = it
-                        update[ChapterTable.lastReadAt] = Instant.now().epochSecond
-                    }
-                }
-            }
+    ): Int {
+        val chapterId =
+            transaction {
+                val chapter =
+                    ChapterTable
+                        .selectAll()
+                        .where { (ChapterTable.manga eq mangaId) and (ChapterTable.sourceOrder eq chapterIndex) }
+                        .first()
 
-            markPrevRead?.let {
-                ChapterTable.update({ (ChapterTable.manga eq mangaId) and (ChapterTable.sourceOrder less chapterIndex) }) {
-                    it[ChapterTable.isRead] = markPrevRead
+                val chapterIdValue = chapter[ChapterTable.id].value
+
+                if (listOf(isRead, isBookmarked, lastPageRead).any { it != null }) {
+                    ChapterTable.update({ (ChapterTable.manga eq mangaId) and (ChapterTable.sourceOrder eq chapterIndex) }) { update ->
+                        isRead?.also {
+                            update[ChapterTable.isRead] = it
+                        }
+                        isBookmarked?.also {
+                            update[ChapterTable.isBookmarked] = it
+                        }
+                        lastPageRead?.also {
+                            update[ChapterTable.lastPageRead] = it
+                            update[lastReadAt] = Instant.now().epochSecond
+                        }
+                    }
                 }
+
+                markPrevRead?.let {
+                    ChapterTable.update({ (ChapterTable.manga eq mangaId) and (ChapterTable.sourceOrder less chapterIndex) }) {
+                        it[ChapterTable.isRead] = markPrevRead
+                    }
+                }
+
+                chapterIdValue
             }
-        }
 
         if (isRead == true || markPrevRead == true) {
             Track.asyncTrackChapter(setOf(mangaId))
         }
+
+        return chapterId
     }
 
     @Serializable
@@ -500,25 +513,33 @@ object Chapter {
         // Make sure some filter is defined
         val condition =
             when {
-                mangaId != null ->
+                mangaId != null -> {
                     // mangaId is not null, scope query under manga
                     when {
-                        input.chapterIds != null ->
+                        input.chapterIds != null -> {
                             Op.build { (ChapterTable.manga eq mangaId) and (ChapterTable.id inList input.chapterIds) }
+                        }
 
-                        input.chapterIndexes != null ->
+                        input.chapterIndexes != null -> {
                             Op.build { (ChapterTable.manga eq mangaId) and (ChapterTable.sourceOrder inList input.chapterIndexes) }
+                        }
 
-                        else -> null
+                        else -> {
+                            null
+                        }
                     }
+                }
 
                 else -> {
                     // mangaId is null, only chapterIndexes is valid for this case
                     when {
-                        input.chapterIds != null ->
+                        input.chapterIds != null -> {
                             Op.build { (ChapterTable.id inList input.chapterIds) }
+                        }
 
-                        else -> null
+                        else -> {
+                            null
+                        }
                     }
                 }
             } ?: return
@@ -534,7 +555,7 @@ object Chapter {
                 }
                 lastPageRead?.also {
                     update[ChapterTable.lastPageRead] = it
-                    update[ChapterTable.lastReadAt] = now
+                    update[lastReadAt] = now
                 }
             }
         }
@@ -552,14 +573,14 @@ object Chapter {
         }
     }
 
-    fun getChaptersMetaMaps(chapterIds: List<EntityID<Int>>): Map<EntityID<Int>, Map<String, String>> =
+    fun getChaptersMetaMaps(chapterIds: List<Int>): Map<Int, Map<String, String>> =
         transaction {
             ChapterMetaTable
                 .selectAll()
                 .where { ChapterMetaTable.ref inList chapterIds }
-                .groupBy { it[ChapterMetaTable.ref] }
+                .groupBy { it[ChapterMetaTable.ref].value }
                 .mapValues { it.value.associate { it[ChapterMetaTable.key] to it[ChapterMetaTable.value] } }
-                .withDefault { emptyMap<String, String>() }
+                .withDefault { emptyMap() }
         }
 
     fun getChapterMetaMap(chapter: EntityID<Int>): Map<String, String> =
@@ -592,22 +613,57 @@ object Chapter {
         key: String,
         value: String,
     ) {
+        modifyChaptersMetas(mapOf(chapterId to mapOf(key to value)))
+    }
+
+    fun modifyChaptersMetas(metaByChapterId: Map<Int, Map<String, String>>) {
         transaction {
-            val meta =
+            val chapterIds = metaByChapterId.keys
+            val metaKeys = metaByChapterId.flatMap { it.value.keys }
+
+            val dbMetaByChapterId =
                 ChapterMetaTable
                     .selectAll()
-                    .where { (ChapterMetaTable.ref eq chapterId) and (ChapterMetaTable.key eq key) }
-                    .firstOrNull()
+                    .where { (ChapterMetaTable.ref inList chapterIds) and (ChapterMetaTable.key inList metaKeys) }
+                    .groupBy { it[ChapterMetaTable.ref].value }
 
-            if (meta == null) {
-                ChapterMetaTable.insert {
-                    it[ChapterMetaTable.key] = key
-                    it[ChapterMetaTable.value] = value
-                    it[ChapterMetaTable.ref] = chapterId
+            val existingMetaByMetaId =
+                chapterIds.flatMap { chapterId ->
+                    val dbMetaByKey = dbMetaByChapterId[chapterId].orEmpty().associateBy { it[ChapterMetaTable.key] }
+                    val existingMetas = metaByChapterId[chapterId].orEmpty().filter { (key) -> key in dbMetaByKey.keys }
+
+                    existingMetas.map { entry ->
+                        val metaId = dbMetaByKey[entry.key]!![ChapterMetaTable.id].value
+
+                        metaId to entry
+                    }
                 }
-            } else {
-                ChapterMetaTable.update({ (ChapterMetaTable.ref eq chapterId) and (ChapterMetaTable.key eq key) }) {
-                    it[ChapterMetaTable.value] = value
+
+            val newMetaByChapterId =
+                chapterIds.flatMap { chapterId ->
+                    val dbMetaByKey = dbMetaByChapterId[chapterId].orEmpty().associateBy { it[ChapterMetaTable.key] }
+
+                    metaByChapterId[chapterId]
+                        .orEmpty()
+                        .filter { entry -> entry.key !in dbMetaByKey.keys }
+                        .map { entry -> chapterId to entry }
+                }
+
+            if (existingMetaByMetaId.isNotEmpty()) {
+                BatchUpdateStatement(ChapterMetaTable).apply {
+                    existingMetaByMetaId.forEach { (metaId, entry) ->
+                        addBatch(EntityID(metaId, ChapterMetaTable))
+                        this[ChapterMetaTable.value] = entry.value
+                    }
+                    execute(this@transaction)
+                }
+            }
+
+            if (newMetaByChapterId.isNotEmpty()) {
+                ChapterMetaTable.batchInsert(newMetaByChapterId) { (chapterId, entry) ->
+                    this[ChapterMetaTable.ref] = EntityID(chapterId, ChapterTable)
+                    this[ChapterMetaTable.key] = entry.key
+                    this[ChapterMetaTable.value] = entry.value
                 }
             }
         }
@@ -693,4 +749,35 @@ object Chapter {
                     }
             }
         }
+
+    fun updateChapterProgress(
+        mangaId: Int,
+        chapterIndex: Int,
+        pageNo: Int,
+    ): Int {
+        val chapterData =
+            transaction {
+                ChapterTable
+                    .selectAll()
+                    .where {
+                        (ChapterTable.sourceOrder eq chapterIndex) and
+                            (ChapterTable.manga eq mangaId)
+                    }.first()
+                    .let { ChapterTable.toDataClass(it) }
+            }
+
+        val oneIndexedPageNo = pageNo.inc()
+        val isRead = chapterData.pageCount.takeIf { it == oneIndexedPageNo }?.let { true }
+
+        modifyChapter(
+            mangaId,
+            chapterIndex,
+            isRead = isRead,
+            lastPageRead = pageNo,
+            isBookmarked = null,
+            markPrevRead = null,
+        )
+
+        return chapterData.id
+    }
 }

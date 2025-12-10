@@ -25,6 +25,11 @@ plugins {
             .get()
             .pluginId,
     )
+    id(
+        libs.plugins.jte
+            .get()
+            .pluginId,
+    )
 }
 
 dependencies {
@@ -43,12 +48,13 @@ dependencies {
     // GraphQL
     implementation(libs.graphql.kotlin.server)
     implementation(libs.graphql.kotlin.scheme)
-    implementation(libs.graphql.java.core)
     implementation(libs.graphql.java.scalars)
 
     // Exposed ORM
     implementation(libs.bundles.exposed)
+    implementation(libs.postgres)
     implementation(libs.h2)
+    implementation(libs.hikaricp)
 
     // Exposed Migrations
     implementation(libs.exposed.migrations)
@@ -85,6 +91,12 @@ dependencies {
     implementation(projects.androidCompat)
     implementation(projects.androidCompat.config)
 
+    // i18n
+    implementation(projects.server.i18n)
+
+    // Settings module
+    implementation(projects.server.serverConfig)
+
     // uncomment to test extensions directly
 //    implementation(fileTree("lib/"))
     implementation(kotlin("script-runtime"))
@@ -94,6 +106,14 @@ dependencies {
     implementation(libs.cron4j)
 
     implementation(libs.cronUtils)
+
+    implementation(libs.jwt)
+
+    compileOnly(libs.kte)
+}
+
+jte {
+    generate()
 }
 
 application {
@@ -108,6 +128,15 @@ sourceSets {
     main {
         resources {
             srcDir("src/main/resources")
+            srcDir("build/generated/src/main/resources")
+        }
+        kotlin {
+            srcDir("build/generated/src/main/kotlin")
+        }
+    }
+    test {
+        resources {
+            srcDir("build/generated/src/test/resources")
         }
     }
 }
@@ -121,7 +150,7 @@ buildConfig {
     fun quoteWrap(obj: Any): String = """"$obj""""
 
     buildConfigField("String", "NAME", quoteWrap(rootProject.name))
-    buildConfigField("String", "VERSION", quoteWrap(tachideskVersion))
+    buildConfigField("String", "VERSION", quoteWrap(getTachideskVersion()))
     buildConfigField("String", "REVISION", quoteWrap(getTachideskRevision()))
     buildConfigField("String", "BUILD_TYPE", quoteWrap(if (System.getenv("ProductBuildType") == "Stable") "Stable" else "Preview"))
     buildConfigField("long", "BUILD_TIME", Instant.now().epochSecond.toString())
@@ -140,13 +169,13 @@ tasks {
                 "Main-Class" to MainClass,
                 "Implementation-Title" to rootProject.name,
                 "Implementation-Vendor" to "The Suwayomi Project",
-                "Specification-Version" to tachideskVersion,
+                "Specification-Version" to getTachideskVersion(),
                 "Implementation-Version" to getTachideskRevision(),
             )
         }
         archiveBaseName.set(rootProject.name)
-        archiveVersion.set(tachideskVersion)
-        archiveClassifier.set(getTachideskRevision())
+        archiveVersion.set(getTachideskVersion())
+        archiveClassifier.set("")
         destinationDirectory.set(File("$rootDir/server/build"))
         mergeServiceFiles()
     }
@@ -209,5 +238,21 @@ tasks {
                     "-Dsuwayomi.tachidesk.config.server.electronPath=/usr/bin/electron",
                 )
         }
+    }
+
+    runKtlintCheckOverMainSourceSet {
+        mustRunAfter(generateJte)
+    }
+
+    compileKotlin {
+        dependsOn(":server:server-config-generate:generateSettings")
+    }
+
+    processResources {
+        dependsOn(":server:server-config-generate:generateSettings")
+    }
+
+    processTestResources {
+        dependsOn(":server:server-config-generate:generateSettings")
     }
 }

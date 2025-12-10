@@ -1,20 +1,23 @@
 package suwayomi.tachidesk.graphql.queries
 
+import com.expediagroup.graphql.generator.annotations.GraphQLDeprecated
 import suwayomi.tachidesk.global.impl.AppUpdate
+import suwayomi.tachidesk.graphql.directives.RequireAuth
 import suwayomi.tachidesk.graphql.types.AboutWebUI
+import suwayomi.tachidesk.graphql.types.WebUIFlavor
 import suwayomi.tachidesk.graphql.types.WebUIUpdateCheck
 import suwayomi.tachidesk.graphql.types.WebUIUpdateStatus
 import suwayomi.tachidesk.server.JavalinSetup.future
 import suwayomi.tachidesk.server.generated.BuildConfig
 import suwayomi.tachidesk.server.serverConfig
 import suwayomi.tachidesk.server.util.WebInterfaceManager
-import suwayomi.tachidesk.server.util.WebUIFlavor
 import java.util.concurrent.CompletableFuture
 
 class InfoQuery {
     data class AboutServerPayload(
         val name: String,
         val version: String,
+        @GraphQLDeprecated("The version includes the revision as the patch number")
         val revision: String,
         val buildType: String,
         val buildTime: Long,
@@ -40,6 +43,7 @@ class InfoQuery {
         val url: String,
     )
 
+    @RequireAuth
     fun checkForServerUpdates(): CompletableFuture<List<CheckForServerUpdatesPayload>> =
         future {
             AppUpdate.checkUpdate().map {
@@ -51,11 +55,13 @@ class InfoQuery {
             }
         }
 
+    @RequireAuth
     fun aboutWebUI(): CompletableFuture<AboutWebUI> =
         future {
             WebInterfaceManager.getAboutInfo()
         }
 
+    @RequireAuth
     fun checkForWebUIUpdate(): CompletableFuture<WebUIUpdateCheck> =
         future {
             val (version, updateAvailable) = WebInterfaceManager.isUpdateAvailable(WebUIFlavor.current, raiseError = true)
@@ -66,5 +72,6 @@ class InfoQuery {
             )
         }
 
+    @RequireAuth
     fun getWebUIUpdateStatus(): WebUIUpdateStatus = WebInterfaceManager.status.value
 }

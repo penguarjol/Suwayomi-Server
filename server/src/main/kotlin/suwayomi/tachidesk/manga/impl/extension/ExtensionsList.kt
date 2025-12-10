@@ -149,6 +149,7 @@ object ExtensionsList {
                                         this[ExtensionTable.hasUpdate] = true
                                         updateMap.putIfAbsent(foundExtension.pkgName, foundExtension)
                                     }
+
                                     foundExtension.versionCode < extensionRecord[ExtensionTable.versionCode] -> {
                                         // somehow the user installed an invalid version
                                         this[ExtensionTable.isObsolete] = true
@@ -223,10 +224,4 @@ object ExtensionsList {
         } else {
             this
         }
-
-    val repoMatchRegex =
-        (
-            "https:\\/\\/(?>www\\.|raw\\.)?(github|githubusercontent)\\.com" +
-                "\\/([^\\/]+)\\/([^\\/]+)(?>(?>\\/tree|\\/blob)?\\/([^\\/\\n]*))?(?>\\/([^\\/\\n]*\\.json)?)?"
-        ).toRegex()
 }

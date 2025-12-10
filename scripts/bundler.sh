@@ -28,9 +28,9 @@ main() {
   OS="$1"
   JAR="$(ls server/build/*.jar | tail -n1)"
   RELEASE_NAME="$(echo "${JAR%.*}" | xargs basename)-$OS"
-  RELEASE_VERSION="$(tmp="${JAR%-*}"; echo "${tmp##*-}" | tr -d v)"
+  RELEASE_VERSION=$(echo "$JAR" | grep -oP "v\K[0-9]+\.[0-9]+\.[0-9]+")
   #RELEASE_REVISION_NUMBER="$(tmp="${JAR%.*}" && echo "${tmp##*-}" | tr -d r)"
-  local electron_version="v28.1.3"
+  local electron_version="v37.2.5"
 
   # clean temporary directory on function return
   trap "rm -rf $RELEASE_NAME/" RETURN
@@ -38,10 +38,30 @@ main() {
 
   download_launcher
 
+  if [ ! -f scripts/resources/catch_abort.so ]; then
+    gcc -fPIC -I$JAVA_HOME/include -I$JAVA_HOME/include/linux -shared scripts/resources/catch_abort.c -lpthread -o scripts/resources/catch_abort.so
+  fi
+
+  JRE_ZULU="25.30.17_25.0.1"
+  JRE_RELEASE="jre${JRE_ZULU#*_}" # e.g. jre25.0.1
+  ZULU_RELEASE="zulu${JRE_ZULU%_*}" # e.g. zulu25.30.17
+
   case "$OS" in
     debian-all)
       RELEASE="$RELEASE_NAME.deb"
+      download_jogamp "linux-*" # it's easier to bundle them ourselves than to handle Debian's path conventions
       make_deb_package
+      move_release_to_output_dir
+      ;;
+    appimage)
+      JRE="$ZULU_RELEASE-ca-$JRE_RELEASE-linux_x64.zip"
+      JRE_DIR="${JRE%.*}"
+      JRE_URL="https://cdn.azul.com/zulu/bin/$JRE"
+      download_jogamp "linux-amd64"
+      setup_jre
+
+      RELEASE="$RELEASE_NAME.AppImage"
+      make_appimage
       move_release_to_output_dir
       ;;
     linux-assets)
@@ -51,14 +71,13 @@ main() {
       move_release_to_output_dir
       ;;
     linux-x64)
-      # https://github.com/adoptium/temurin21-binaries/releases/
-      JRE_RELEASE="jdk-21.0.6+7"
-      JRE="OpenJDK21U-jre_x64_linux_hotspot_$(echo "$JRE_RELEASE" | sed 's/jdk//;s/-//g;s/+/_/g').tar.gz"
-      JRE_DIR="$JRE_RELEASE-jre"
-      JRE_URL="https://github.com/adoptium/temurin21-binaries/releases/download/$JRE_RELEASE/$JRE"
+      JRE="$ZULU_RELEASE-ca-$JRE_RELEASE-linux_x64.zip"
+      JRE_DIR="${JRE%.*}"
+      JRE_URL="https://cdn.azul.com/zulu/bin/$JRE"
       ELECTRON="electron-$electron_version-linux-x64.zip"
       ELECTRON_URL="https://github.com/electron/electron/releases/download/$electron_version/$ELECTRON"
       download_electron
+      download_jogamp "linux-amd64"
       setup_jre
       tree "$RELEASE_NAME"
 
@@ -67,46 +86,43 @@ main() {
       move_release_to_output_dir
       ;;
     macOS-x64)
-      # https://github.com/adoptium/temurin21-binaries/releases/
-      JRE_RELEASE="jdk-21.0.6+7"
-      JRE="OpenJDK21U-jre_x64_mac_hotspot_$(echo "$JRE_RELEASE" | sed 's/jdk//;s/-//g;s/+/_/g').tar.gz"
-      JRE_DIR="$JRE_RELEASE-jre"
-      JRE_URL="https://github.com/adoptium/temurin21-binaries/releases/download/$JRE_RELEASE/$JRE"
+      JRE="$ZULU_RELEASE-ca-$JRE_RELEASE-macosx_x64.zip"
+      JRE_DIR="${JRE%.*}"
+      JRE_URL="https://cdn.azul.com/zulu/bin/$JRE"
       ELECTRON="electron-$electron_version-darwin-x64.zip"
       ELECTRON_URL="https://github.com/electron/electron/releases/download/$electron_version/$ELECTRON"
       download_electron
+      download_jogamp "macosx-universal"
       setup_jre
       tree "$RELEASE_NAME"
 
-      RELEASE="$RELEASE_NAME.zip"
+      RELEASE="$RELEASE_NAME.tar.gz"
       make_macos_bundle
       move_release_to_output_dir
       ;;
     macOS-arm64)
-      # https://github.com/adoptium/temurin21-binaries/releases/
-      JRE_RELEASE="jdk-21.0.6+7"
-      JRE="OpenJDK21U-jre_aarch64_mac_hotspot_$(echo "$JRE_RELEASE" | sed 's/jdk//;s/-//g;s/+/_/g').tar.gz"
-      JRE_DIR="$JRE_RELEASE-jre"
-      JRE_URL="https://github.com/adoptium/temurin21-binaries/releases/download/$JRE_RELEASE/$JRE"
+      JRE="$ZULU_RELEASE-ca-$JRE_RELEASE-macosx_aarch64.zip"
+      JRE_DIR="${JRE%.*}"
+      JRE_URL="https://cdn.azul.com/zulu/bin/$JRE"
       ELECTRON="electron-$electron_version-darwin-arm64.zip"
       ELECTRON_URL="https://github.com/electron/electron/releases/download/$electron_version/$ELECTRON"
       download_electron
+      download_jogamp "macosx-universal"
       setup_jre
       tree "$RELEASE_NAME"
 
-      RELEASE="$RELEASE_NAME.zip"
+      RELEASE="$RELEASE_NAME.tar.gz"
       make_macos_bundle
       move_release_to_output_dir
       ;;
     windows-x64)
-      # https://github.com/adoptium/temurin21-binaries/releases/
-      JRE_RELEASE="jdk-21.0.6+7"
-      JRE="OpenJDK21U-jre_x64_windows_hotspot_$(echo "$JRE_RELEASE" | sed 's/jdk//;s/-//g;s/+/_/g').zip"
-      JRE_DIR="$JRE_RELEASE-jre"
-      JRE_URL="https://github.com/adoptium/temurin21-binaries/releases/download/$JRE_RELEASE/$JRE"
+      JRE="$ZULU_RELEASE-ca-$JRE_RELEASE-win_x64.zip"
+      JRE_DIR="${JRE%.*}"
+      JRE_URL="https://cdn.azul.com/zulu/bin/$JRE"
       ELECTRON="electron-$electron_version-win32-x64.zip"
       ELECTRON_URL="https://github.com/electron/electron/releases/download/$electron_version/$ELECTRON"
       download_electron
+      download_jogamp "windows-amd64"
       setup_jre
       tree "$RELEASE_NAME"
 
@@ -138,6 +154,18 @@ download_launcher() {
   mv "Suwayomi-Launcher.jar" "$RELEASE_NAME/Suwayomi-Launcher.jar"
 }
 
+download_jogamp() {
+  local platform="$1"
+  if [ ! -f jogamp-all-platforms.7z ]; then
+    curl "https://jogamp.org/deployment/jogamp-current/archive/jogamp-all-platforms.7z" -o jogamp-all-platforms.7z
+  fi
+
+  7z x jogamp-all-platforms.7z "jogamp-all-platforms/lib/$platform/"
+  mkdir -p "$RELEASE_NAME/natives/"
+  mv jogamp-all-platforms/lib/* "$RELEASE_NAME/natives/"
+  rm -rf jogamp-all-platforms
+}
+
 download_electron() {
   if [ ! -f "$ELECTRON" ]; then
     curl -L "$ELECTRON_URL" -o "$ELECTRON"
@@ -148,19 +176,21 @@ download_electron() {
 
 setup_jre() {
   if [ -d "jre" ]; then
+    chmod +x ./jre/bin/java
+    chmod +x ./jre/lib/jspawnhelper
     mv "jre" "$RELEASE_NAME/jre"
   else
     if [ ! -f "$JRE" ]; then
-        curl -L "$JRE_URL" -o "$JRE"
-      fi
+      curl -L "$JRE_URL" -o "$JRE"
+    fi
 
-      local ext="${JRE##*.}"
-      if [ "$ext" = "zip" ]; then
-        unzip "$JRE"
-      else
-        tar xvf "$JRE"
-      fi
-      mv "$JRE_DIR" "$RELEASE_NAME/jre"
+    local ext="${JRE##*.}"
+    if [ "$ext" = "zip" ]; then
+      unzip "$JRE"
+    else
+      tar xvf "$JRE"
+    fi
+    mv "$JRE_DIR" "$RELEASE_NAME/jre"
   fi
 }
 
@@ -182,6 +212,7 @@ make_linux_bundle() {
   cp "$JAR" "$RELEASE_NAME/bin/Suwayomi-Server.jar"
   cp "scripts/resources/suwayomi-launcher.sh" "$RELEASE_NAME/"
   cp "scripts/resources/suwayomi-server.sh" "$RELEASE_NAME/"
+  cp "scripts/resources/catch_abort.so" "$RELEASE_NAME/bin/"
 
   tar -I "gzip -9" -cvf "$RELEASE" "$RELEASE_NAME/"
 }
@@ -191,7 +222,7 @@ make_macos_bundle() {
   cp "$JAR" "$RELEASE_NAME/bin/Suwayomi-Server.jar"
   cp "scripts/resources/Suwayomi Launcher.command" "$RELEASE_NAME/"
 
-  zip -9 -r "$RELEASE" "$RELEASE_NAME/"
+  tar -I "gzip -9" -cvf "$RELEASE" "$RELEASE_NAME/"
 }
 
 # https://wiki.debian.org/SimplePackagingTutorial
@@ -203,17 +234,21 @@ make_deb_package() {
   local upstream_source="suwayomi-server_$RELEASE_VERSION.orig.tar.gz"
 
   mkdir "$RELEASE_NAME/$source_dir/"
+  mv "$RELEASE_NAME/natives" "$RELEASE_NAME/$source_dir/natives"
   mv "$RELEASE_NAME/Suwayomi-Launcher.jar" "$RELEASE_NAME/$source_dir/Suwayomi-Launcher.jar"
   cp "$JAR" "$RELEASE_NAME/$source_dir/Suwayomi-Server.jar"
   copy_linux_package_assets_to "$RELEASE_NAME/$source_dir/"
+  cp "scripts/resources/catch_abort.so" "$RELEASE_NAME/$source_dir/"
   tar -I "gzip" -C "$RELEASE_NAME/" -cvf "$upstream_source" "$source_dir"
 
   cp -r "scripts/resources/deb/" "$RELEASE_NAME/$source_dir/debian/"
   sed -i "s/\$pkgver/$RELEASE_VERSION/" "$RELEASE_NAME/$source_dir/debian/changelog"
   sed -i "s/\$pkgrel/1/"                "$RELEASE_NAME/$source_dir/debian/changelog"
 
-  sudo apt update
-  sudo apt install devscripts build-essential dh-exec
+  if [ "${CI:-}" = true ]; then
+    sudo apt update
+    sudo apt install devscripts build-essential dh-exec
+  fi
   cd "$RELEASE_NAME/$source_dir/"
   dpkg-buildpackage --no-sign --build=all
   cd -
@@ -222,13 +257,34 @@ make_deb_package() {
   mv "$RELEASE_NAME/$deb" "$RELEASE"
 }
 
+# https://linuxconfig.org/building-a-hello-world-appimage-on-linux
+make_appimage() {
+  local APPIMAGE_URL="https://github.com/AppImage/appimagetool/releases/download/continuous/appimagetool-x86_64.AppImage"
+  local APPIMAGE_TOOLNAME="appimagetool-x86_64.AppImage"
+  mkdir "$RELEASE_NAME/bin/"
+  cp "$JAR" "$RELEASE_NAME/bin/Suwayomi-Server.jar"
+
+  cp "scripts/resources/pkg/suwayomi-server.desktop" "$RELEASE_NAME/suwayomi-server.desktop"
+  cp "server/src/main/resources/icon/faviconlogo.png" "$RELEASE_NAME/suwayomi-server.png"
+  cp "scripts/resources/appimage/AppRun" "$RELEASE_NAME/AppRun"
+  chmod +x "$RELEASE_NAME/AppRun"
+
+  if [ "${CI:-}" = true ]; then
+    sudo apt update
+    sudo apt install libfuse2
+  fi
+  curl -L $APPIMAGE_URL -o $APPIMAGE_TOOLNAME
+  chmod +x $APPIMAGE_TOOLNAME
+  ARCH=x86_64 ./$APPIMAGE_TOOLNAME "$RELEASE_NAME" "$RELEASE"
+}
+
 make_windows_bundle() {
   ## I disabled this section until someone find a solution to this error:
   ##E: Unable to correct problems, you have held broken packages.
   ##./bundler.sh: line 250: wine: command not found
 
   ## check if running under github actions
-  #if [ "$CI" = true ]; then
+  #if [ "${CI:-}" = true ]; then
     ## change electron executable's icon
     #sudo dpkg --add-architecture i386
     #wget -qO - https://dl.winehq.org/wine-builds/winehq.key \
@@ -259,7 +315,7 @@ make_windows_bundle() {
 }
 
 make_windows_package() {
-  if [ "$CI" = true ]; then
+  if [ "${CI:-}" = true ]; then
     sudo apt update
     sudo apt install -y wixl
   fi
@@ -270,6 +326,9 @@ make_windows_package() {
   find "$RELEASE_NAME/electron" \
   | wixl-heat --var var.SourceDir -p "$RELEASE_NAME/" \
     --directory-ref electron --component-group electron >"$RELEASE_NAME/electron.wxs"
+  find "$RELEASE_NAME/natives" \
+  | wixl-heat --var var.SourceDir -p "$RELEASE_NAME/" \
+    --directory-ref natives --component-group natives >"$RELEASE_NAME/natives.wxs"
 
   find "$RELEASE_NAME/bin" \
   | wixl-heat --var var.SourceDir -p "$RELEASE_NAME/" \
@@ -280,7 +339,7 @@ make_windows_package() {
 
   wixl -D ProductVersion="$RELEASE_VERSION" -D SourceDir="$RELEASE_NAME" \
     -D Icon="$icon" --arch "$arch" "scripts/resources/msi/suwayomi-server-$arch.wxs" \
-    "$RELEASE_NAME/jre.wxs" "$RELEASE_NAME/electron.wxs" "$RELEASE_NAME/bin.wxs" -o "$RELEASE"
+    "$RELEASE_NAME/jre.wxs" "$RELEASE_NAME/electron.wxs" "$RELEASE_NAME/natives.wxs" "$RELEASE_NAME/bin.wxs" -o "$RELEASE"
 }
 
 # Error handler

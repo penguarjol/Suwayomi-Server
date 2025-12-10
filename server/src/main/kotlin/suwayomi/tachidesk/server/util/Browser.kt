@@ -9,6 +9,7 @@ package suwayomi.tachidesk.server.util
 
 import dorkbox.desktop.Desktop
 import io.github.oshai.kotlinlogging.KotlinLogging
+import suwayomi.tachidesk.graphql.types.WebUIInterface
 import suwayomi.tachidesk.server.serverConfig
 
 object Browser {
@@ -17,14 +18,16 @@ object Browser {
 
     private fun getAppBaseUrl(): String {
         val appIP = if (serverConfig.ip.value == "0.0.0.0") "127.0.0.1" else serverConfig.ip.value
-        return "http://$appIP:${serverConfig.port.value}"
+        val baseUrl = "http://$appIP:${serverConfig.port.value}"
+
+        return ServerSubpath.maybeAddAsSuffix(baseUrl)
     }
 
     fun openInBrowser() {
         if (serverConfig.webUIEnabled.value) {
             val appBaseUrl = getAppBaseUrl()
 
-            if (serverConfig.webUIInterface.value == WebUIInterface.ELECTRON.name.lowercase()) {
+            if (serverConfig.webUIInterface.value == WebUIInterface.ELECTRON) {
                 try {
                     val electronPath = serverConfig.electronPath.value
                     electronInstances.add(ProcessBuilder(electronPath, appBaseUrl).start())

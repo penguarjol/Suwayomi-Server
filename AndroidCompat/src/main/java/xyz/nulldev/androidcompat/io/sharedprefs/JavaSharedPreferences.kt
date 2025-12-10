@@ -96,7 +96,7 @@ class JavaSharedPreferences(
             } else {
                 preferences.decodeValueOrNull(SetSerializer(String.serializer()), key)
             }
-        } catch (e: SerializationException) {
+        } catch (_: SerializationException) {
             throw ClassCastException("$key was not a StringSet")
         }
     }
@@ -153,11 +153,12 @@ class JavaSharedPreferences(
             key: String,
             value: String?,
         ): SharedPreferences.Editor {
-            if (value != null) {
-                actions += Action.Add(key, value)
-            } else {
-                actions += Action.Remove(key)
-            }
+            actions +=
+                if (value != null) {
+                    Action.Add(key, value)
+                } else {
+                    Action.Remove(key)
+                }
             return this
         }
 
@@ -165,11 +166,12 @@ class JavaSharedPreferences(
             key: String,
             values: MutableSet<String>?,
         ): SharedPreferences.Editor {
-            if (values != null) {
-                actions += Action.Add(key, values)
-            } else {
-                actions += Action.Remove(key)
-            }
+            actions +=
+                if (values != null) {
+                    Action.Add(key, values)
+                } else {
+                    Action.Remove(key)
+                }
             return this
         }
 
@@ -240,13 +242,14 @@ class JavaSharedPreferences(
                         }
                         notify(it.key)
                     }
+
                     is Action.Remove -> {
                         preferences.remove(it.key)
-                        /**
-                         * Set<String> are stored like
-                         * key.0 = value1
-                         * key.1 = value2
-                         * key.size = 2
+                        /*
+                         Set<String> are stored like
+                         key.0 = value1
+                         key.1 = value2
+                         key.size = 2
                          */
                         preferences.keys.forEach { key ->
                             if (key.startsWith(it.key + ".")) {
@@ -256,7 +259,10 @@ class JavaSharedPreferences(
 
                         notify(it.key)
                     }
-                    Action.Clear -> preferences.clear()
+
+                    Action.Clear -> {
+                        preferences.clear()
+                    }
                 }
             }
         }

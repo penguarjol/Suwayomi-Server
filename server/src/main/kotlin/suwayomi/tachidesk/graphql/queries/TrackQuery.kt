@@ -10,6 +10,7 @@ import org.jetbrains.exposed.sql.SqlExpressionBuilder.greater
 import org.jetbrains.exposed.sql.SqlExpressionBuilder.less
 import org.jetbrains.exposed.sql.selectAll
 import org.jetbrains.exposed.sql.transactions.transaction
+import suwayomi.tachidesk.graphql.directives.RequireAuth
 import suwayomi.tachidesk.graphql.queries.filter.BooleanFilter
 import suwayomi.tachidesk.graphql.queries.filter.DoubleFilter
 import suwayomi.tachidesk.graphql.queries.filter.Filter
@@ -43,6 +44,7 @@ import suwayomi.tachidesk.server.JavalinSetup.future
 import java.util.concurrent.CompletableFuture
 
 class TrackQuery {
+    @RequireAuth
     fun tracker(
         dataFetchingEnvironment: DataFetchingEnvironment,
         id: Int,
@@ -59,8 +61,14 @@ class TrackQuery {
             cursor: Cursor,
         ): Boolean =
             when (this) {
-                ID -> tracker.id > cursor.value.toInt()
-                NAME -> tracker.name > cursor.value
+                ID -> {
+                    tracker.id > cursor.value.toInt()
+                }
+
+                NAME -> {
+                    tracker.name > cursor.value
+                }
+
                 IS_LOGGED_IN -> {
                     val value = cursor.value.substringAfter('-').toBooleanStrict()
                     !value || tracker.isLoggedIn
@@ -72,8 +80,14 @@ class TrackQuery {
             cursor: Cursor,
         ): Boolean =
             when (this) {
-                ID -> tracker.id < cursor.value.toInt()
-                NAME -> tracker.name < cursor.value
+                ID -> {
+                    tracker.id < cursor.value.toInt()
+                }
+
+                NAME -> {
+                    tracker.name < cursor.value
+                }
+
                 IS_LOGGED_IN -> {
                     val value = cursor.value.substringAfter('-').toBooleanStrict()
                     value || !tracker.isLoggedIn
@@ -114,6 +128,7 @@ class TrackQuery {
         val not: TrackerFilter? = null,
     )
 
+    @RequireAuth
     fun trackers(
         condition: TrackerCondition? = null,
         @GraphQLDeprecated(
@@ -156,18 +171,21 @@ class TrackQuery {
 
                         res =
                             when (orderType) {
-                                SortOrder.DESC, SortOrder.DESC_NULLS_FIRST, SortOrder.DESC_NULLS_LAST ->
+                                SortOrder.DESC, SortOrder.DESC_NULLS_FIRST, SortOrder.DESC_NULLS_LAST -> {
                                     when (orderBy) {
                                         TrackerOrderBy.ID -> res.sortedByDescending { it.id }
                                         TrackerOrderBy.NAME -> res.sortedByDescending { it.name }
                                         TrackerOrderBy.IS_LOGGED_IN -> res.sortedByDescending { it.isLoggedIn }
                                     }
-                                SortOrder.ASC, SortOrder.ASC_NULLS_FIRST, SortOrder.ASC_NULLS_LAST ->
+                                }
+
+                                SortOrder.ASC, SortOrder.ASC_NULLS_FIRST, SortOrder.ASC_NULLS_LAST -> {
                                     when (orderBy) {
                                         TrackerOrderBy.ID -> res.sortedBy { it.id }
                                         TrackerOrderBy.NAME -> res.sortedBy { it.name }
                                         TrackerOrderBy.IS_LOGGED_IN -> res.sortedBy { it.isLoggedIn }
                                     }
+                                }
                             }
                     }
                 }
@@ -237,6 +255,7 @@ class TrackQuery {
         )
     }
 
+    @RequireAuth
     fun trackRecord(
         dataFetchingEnvironment: DataFetchingEnvironment,
         id: Int,
@@ -256,6 +275,7 @@ class TrackQuery {
         SCORE(TrackRecordTable.score),
         START_DATE(TrackRecordTable.startDate),
         FINISH_DATE(TrackRecordTable.finishDate),
+        PRIVATE(TrackRecordTable.private),
         ;
 
         override fun greater(cursor: Cursor): Op<Boolean> =
@@ -270,6 +290,7 @@ class TrackQuery {
                 SCORE -> greaterNotUnique(TrackRecordTable.score, TrackRecordTable.id, cursor, String::toDouble)
                 START_DATE -> greaterNotUnique(TrackRecordTable.startDate, TrackRecordTable.id, cursor, String::toLong)
                 FINISH_DATE -> greaterNotUnique(TrackRecordTable.finishDate, TrackRecordTable.id, cursor, String::toLong)
+                PRIVATE -> greaterNotUnique(TrackRecordTable.private, TrackRecordTable.id, cursor, String::toBoolean)
             }
 
         override fun less(cursor: Cursor): Op<Boolean> =
@@ -284,6 +305,7 @@ class TrackQuery {
                 SCORE -> lessNotUnique(TrackRecordTable.score, TrackRecordTable.id, cursor, String::toDouble)
                 START_DATE -> lessNotUnique(TrackRecordTable.startDate, TrackRecordTable.id, cursor, String::toLong)
                 FINISH_DATE -> lessNotUnique(TrackRecordTable.finishDate, TrackRecordTable.id, cursor, String::toLong)
+                PRIVATE -> lessNotUnique(TrackRecordTable.private, TrackRecordTable.id, cursor, String::toBoolean)
             }
 
         override fun asCursor(type: TrackRecordType): Cursor {
@@ -299,6 +321,7 @@ class TrackQuery {
                     SCORE -> type.id.toString() + "-" + type.score
                     START_DATE -> type.id.toString() + "-" + type.startDate
                     FINISH_DATE -> type.id.toString() + "-" + type.finishDate
+                    PRIVATE -> type.id.toString() + "-" + type.private
                 }
             return Cursor(value)
         }
@@ -323,6 +346,7 @@ class TrackQuery {
         val remoteUrl: String? = null,
         val startDate: Long? = null,
         val finishDate: Long? = null,
+        val private: Boolean? = null,
     ) : HasGetOp {
         override fun getOp(): Op<Boolean>? {
             val opAnd = OpAnd()
@@ -339,6 +363,7 @@ class TrackQuery {
             opAnd.eq(remoteUrl, TrackRecordTable.remoteUrl)
             opAnd.eq(startDate, TrackRecordTable.startDate)
             opAnd.eq(finishDate, TrackRecordTable.finishDate)
+            opAnd.eq(private, TrackRecordTable.private)
 
             return opAnd.op
         }
@@ -358,6 +383,7 @@ class TrackQuery {
         val remoteUrl: StringFilter? = null,
         val startDate: LongFilter? = null,
         val finishDate: LongFilter? = null,
+        val private: BooleanFilter? = null,
         override val and: List<TrackRecordFilter>? = null,
         override val or: List<TrackRecordFilter>? = null,
         override val not: TrackRecordFilter? = null,
@@ -377,9 +403,11 @@ class TrackQuery {
                 andFilterWithCompareString(TrackRecordTable.remoteUrl, remoteUrl),
                 andFilterWithCompare(TrackRecordTable.startDate, startDate),
                 andFilterWithCompare(TrackRecordTable.finishDate, finishDate),
+                andFilterWithCompare(TrackRecordTable.private, private),
             )
     }
 
+    @RequireAuth
     fun trackRecords(
         condition: TrackRecordCondition? = null,
         filter: TrackRecordFilter? = null,
@@ -482,6 +510,7 @@ class TrackQuery {
         val trackSearches: List<TrackSearchType>,
     )
 
+    @RequireAuth
     fun searchTracker(input: SearchTrackerInput): CompletableFuture<SearchTrackerPayload> =
         future {
             val tracker =
