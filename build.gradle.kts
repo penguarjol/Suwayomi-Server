@@ -24,7 +24,11 @@ allprojects {
         google()
         maven("https://github.com/Suwayomi/Suwayomi-Server/raw/android-jar/")
         maven("https://jitpack.io")
-        maven("https://jogamp.org/deployment/maven")
+        maven("https://www.jogamp.org/deployment/maven")
+        maven {
+            url = uri("http://jogamp.org/deployment/maven")
+            isAllowInsecureProtocol = true
+        }
     }
 }
 
